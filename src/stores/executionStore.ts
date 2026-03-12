@@ -237,7 +237,7 @@ export const useExecutionStore = defineStore('execution', () => {
     // Auto-focus the first job, or if the current focused job is no longer running
     if (
       !focusedJobId.value ||
-      !nodeProgressStatesByJob.value[focusedJobId.value]
+      !queuedJobs.value[focusedJobId.value]
     ) {
       focusedJobId.value = activeJobId.value
     }
@@ -335,6 +335,7 @@ export const useExecutionStore = defineStore('execution', () => {
   }
 
   function handleProgress(e: CustomEvent<ProgressWsMessage>) {
+    if (e.detail.prompt_id !== focusedJobId.value) return
     _executingNodeProgress.value = e.detail
   }
 
@@ -484,6 +485,7 @@ export const useExecutionStore = defineStore('execution', () => {
 
   function setFocusedJob(jobId: string | null) {
     focusedJobId.value = jobId
+    _executingNodeProgress.value = null
     if (jobId) {
       nodeProgressStates.value = nodeProgressStatesByJob.value[jobId] ?? {}
     } else {
