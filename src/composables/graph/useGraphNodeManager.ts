@@ -505,6 +505,20 @@ export function useGraphNodeManager(graph: LGraph): GraphNodeManager {
       const slotInfo = slotMetadata.get(widget.slotName ?? widget.name)
       if (slotInfo) widget.slotMetadata = slotInfo
     }
+
+    // Refresh output slot snapshots to pick up label changes
+    if (nodeRef.outputs) {
+      currentData.outputs = [...nodeRef.outputs]
+    }
+
+    // Force shallowReactive inputs to re-trigger for property changes (e.g., label)
+    if (nodeRef.inputs) {
+      currentData.inputs?.splice(
+        0,
+        currentData.inputs.length,
+        ...nodeRef.inputs
+      )
+    }
   }
 
   // Get access to original LiteGraph node (non-reactive)
