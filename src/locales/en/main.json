@@ -111,6 +111,7 @@
     "rename": "Rename",
     "save": "Save",
     "saving": "Saving",
+    "new": "New",
     "no": "No",
     "cancel": "Cancel",
     "close": "Close",
@@ -984,8 +985,7 @@
     "nRunning": "{count} running",
     "nQueued": "{count} queued",
     "parallelExecution": "Run jobs in parallel",
-    "parallelUpTo": "Up to {count}",
-    "parallelNew": "NEW"
+    "parallelUpTo": "Up to {count}"
   },
   "concurrentExecution": {
     "onboarding": {
