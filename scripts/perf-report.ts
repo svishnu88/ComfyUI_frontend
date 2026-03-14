@@ -19,6 +19,8 @@ interface PerfMeasurement {
   layoutDurationMs: number
   taskDurationMs: number
   heapDeltaBytes: number
+  totalBlockingTimeMs: number
+  frameDurationMs: number
 }
 
 interface PerfReport {
@@ -32,11 +34,18 @@ const CURRENT_PATH = 'test-results/perf-metrics.json'
 const BASELINE_PATH = 'temp/perf-baseline/perf-metrics.json'
 const HISTORY_DIR = 'temp/perf-history'
 
-type MetricKey = 'styleRecalcs' | 'layouts' | 'taskDurationMs'
+type MetricKey =
+  | 'styleRecalcs'
+  | 'layouts'
+  | 'taskDurationMs'
+  | 'totalBlockingTimeMs'
+  | 'frameDurationMs'
 const REPORTED_METRICS: { key: MetricKey; label: string; unit: string }[] = [
   { key: 'styleRecalcs', label: 'style recalcs', unit: '' },
   { key: 'layouts', label: 'layouts', unit: '' },
-  { key: 'taskDurationMs', label: 'task duration', unit: 'ms' }
+  { key: 'taskDurationMs', label: 'task duration', unit: 'ms' },
+  { key: 'totalBlockingTimeMs', label: 'TBT', unit: 'ms' },
+  { key: 'frameDurationMs', label: 'frame duration', unit: 'ms' }
 ]
 
 function groupByName(
@@ -257,13 +266,11 @@ function renderNoBaselineReport(
     const prMean = (key: MetricKey) =>
       prSamples.reduce((sum, s) => sum + s[key], 0) / prSamples.length
 
-    lines.push(
-      `| ${testName}: style recalcs | ${prMean('styleRecalcs').toFixed(0)} |`
-    )
-    lines.push(`| ${testName}: layouts | ${prMean('layouts').toFixed(0)} |`)
-    lines.push(
-      `| ${testName}: task duration | ${prMean('taskDurationMs').toFixed(0)}ms |`
-    )
+    for (const { key, label, unit } of REPORTED_METRICS) {
+      lines.push(
+        `| ${testName}: ${label} | ${formatValue(prMean(key), unit)} |`
+      )
+    }
     const heapMean =
       prSamples.reduce((sum, s) => sum + s.heapDeltaBytes, 0) / prSamples.length
     lines.push(`| ${testName}: heap delta | ${formatBytes(heapMean)} |`)
