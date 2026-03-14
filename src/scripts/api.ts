@@ -741,6 +741,7 @@ export class ComfyApi extends EventTarget {
             case 'logs':
             case 'b_preview':
             case 'notification':
+            case 'model_download_progress':
               this.dispatchCustomEvent(msg.type, msg.data)
               break
             case 'feature_flags':

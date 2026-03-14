@@ -46,20 +46,36 @@
               >
                 {{ $t('missingModelsDialog.acceptTerms') }}
               </a>
-              <i
-                v-else-if="downloadStatus.get(model.url) === 'downloading'"
-                class="icon-[lucide--loader-circle] size-4 animate-spin text-muted-foreground"
-              />
-              <i
-                v-else-if="downloadStatus.get(model.url) === 'done'"
-                class="icon-[lucide--check] size-4 text-green-500"
-              />
-              <span
-                v-else-if="downloadStatus.get(model.url) === 'error'"
-                class="text-xs text-red-500"
+              <template
+                v-else-if="downloadProgress.has(model.url)"
               >
-                Failed
-              </span>
+                <div class="flex items-center gap-2">
+                  <div
+                    v-if="downloadProgress.get(model.url)?.status === 'downloading'"
+                    class="flex items-center gap-1.5"
+                  >
+                    <div class="h-1.5 w-16 overflow-hidden rounded-full bg-muted-foreground/20">
+                      <div
+                        class="h-full rounded-full bg-primary transition-all duration-300"
+                        :style="{ width: (downloadProgress.get(model.url)?.progress ?? 0) + '%' }"
+                      />
+                    </div>
+                    <span class="min-w-[3ch] text-right text-xxxs text-muted-foreground">
+                      {{ Math.round(downloadProgress.get(model.url)?.progress ?? 0) }}%
+                    </span>
+                  </div>
+                  <i
+                    v-else-if="downloadProgress.get(model.url)?.status === 'completed'"
+                    class="icon-[lucide--check] size-4 text-green-500"
+                  />
+                  <span
+                    v-else-if="downloadProgress.get(model.url)?.status === 'error'"
+                    class="text-xs text-red-500"
+                  >
+                    Failed
+                  </span>
+                </div>
+              </template>
               <Button
                 v-else
                 variant="textonly"
@@ -122,12 +138,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue'
 
 import Button from '@/components/ui/button/Button.vue'
 import Skeleton from '@/components/ui/skeleton/Skeleton.vue'
 import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
 import { formatSize } from '@/utils/formatUtil'
+import { api } from '@/scripts/api'
 
 import type { ModelWithUrl } from './missingModelsUtils'
 import {
@@ -203,16 +220,45 @@ onMounted(async () => {
 
 const { copyToClipboard } = useCopyToClipboard()
 
-type DownloadState = 'downloading' | 'done' | 'error'
-const downloadStatus = reactive(new Map<string, DownloadState>())
+interface DownloadProgress {
+  progress: number
+  status: 'downloading' | 'completed' | 'error'
+}
+
+const downloadProgress = reactive(new Map<string, DownloadProgress>())
+
+function onDownloadProgress(event: CustomEvent) {
+  const data = event.detail as {
+    url: string
+    progress: number
+    status: string
+  }
+  downloadProgress.set(data.url, {
+    progress: data.progress,
+    status: data.status as DownloadProgress['status']
+  })
+}
+
+onMounted(() => {
+  api.addEventListener(
+    'model_download_progress',
+    onDownloadProgress as EventListener
+  )
+})
+
+onUnmounted(() => {
+  api.removeEventListener(
+    'model_download_progress',
+    onDownloadProgress as EventListener
+  )
+})
 
 async function handleDownload(model: ProcessedModel) {
-  downloadStatus.set(model.url, 'downloading')
+  downloadProgress.set(model.url, { progress: 0, status: 'downloading' })
   try {
     await downloadModel(model, paths)
-    downloadStatus.set(model.url, 'done')
   } catch {
-    downloadStatus.set(model.url, 'error')
+    downloadProgress.set(model.url, { progress: 0, status: 'error' })
   }
 }
 </script>
