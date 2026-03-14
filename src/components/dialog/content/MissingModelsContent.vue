@@ -46,13 +46,27 @@
               >
                 {{ $t('missingModelsDialog.acceptTerms') }}
               </a>
+              <i
+                v-else-if="downloadStatus.get(model.url) === 'downloading'"
+                class="icon-[lucide--loader-circle] size-4 animate-spin text-muted-foreground"
+              />
+              <i
+                v-else-if="downloadStatus.get(model.url) === 'done'"
+                class="icon-[lucide--check] size-4 text-green-500"
+              />
+              <span
+                v-else-if="downloadStatus.get(model.url) === 'error'"
+                class="text-xs text-red-500"
+              >
+                Failed
+              </span>
               <Button
                 v-else
                 variant="textonly"
                 size="icon"
                 :title="model.url"
                 :aria-label="$t('g.download')"
-                @click="downloadModel(model, paths)"
+                @click="handleDownload(model)"
               >
                 <i class="icon-[lucide--download] size-4" />
               </Button>
@@ -188,4 +202,17 @@ onMounted(async () => {
 })
 
 const { copyToClipboard } = useCopyToClipboard()
+
+type DownloadState = 'downloading' | 'done' | 'error'
+const downloadStatus = reactive(new Map<string, DownloadState>())
+
+async function handleDownload(model: ProcessedModel) {
+  downloadStatus.set(model.url, 'downloading')
+  try {
+    await downloadModel(model, paths)
+    downloadStatus.set(model.url, 'done')
+  } catch {
+    downloadStatus.set(model.url, 'error')
+  }
+}
 </script>

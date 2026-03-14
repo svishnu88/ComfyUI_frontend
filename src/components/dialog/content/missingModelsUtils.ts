@@ -59,27 +59,36 @@ export function getBadgeLabel(directory: string): string {
   return directory.toUpperCase()
 }
 
-export function downloadModel(
+export async function downloadModel(
   model: ModelWithUrl,
   paths: Record<string, string[]>
-): void {
-  if (!isDesktop) {
-    const link = document.createElement('a')
-    link.href = model.url
-    link.download = model.name
-    link.target = '_blank'
-    link.rel = 'noopener noreferrer'
-    link.click()
+): Promise<void> {
+  if (isDesktop) {
+    const modelPaths = paths[model.directory]
+    if (modelPaths?.[0]) {
+      void useElectronDownloadStore().start({
+        url: model.url,
+        savePath: modelPaths[0],
+        filename: model.name
+      })
+    }
     return
   }
 
-  const modelPaths = paths[model.directory]
-  if (modelPaths?.[0]) {
-    void useElectronDownloadStore().start({
+  // Server-side download for web/cloud deployments
+  const response = await fetch('/models/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
       url: model.url,
-      savePath: modelPaths[0],
-      filename: model.name
+      filename: model.name,
+      directory: model.directory
     })
+  })
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error(error.error || 'Download failed')
   }
 }
 
