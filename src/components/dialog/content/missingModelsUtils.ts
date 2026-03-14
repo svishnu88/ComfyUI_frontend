@@ -90,6 +90,9 @@ export async function downloadModel(
     const error = await response.json().catch(() => ({ error: 'Unknown error' }))
     throw new Error(error.error || 'Download failed')
   }
+
+  const result = await response.json().catch(() => ({}))
+  return result as { status?: string }
 }
 
 interface ModelMetadata {

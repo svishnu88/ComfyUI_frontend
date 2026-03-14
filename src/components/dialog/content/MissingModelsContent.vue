@@ -256,7 +256,11 @@ onUnmounted(() => {
 async function handleDownload(model: ProcessedModel) {
   downloadProgress.set(model.url, { progress: 0, status: 'downloading' })
   try {
-    await downloadModel(model, paths)
+    const result = await downloadModel(model, paths)
+    if (result?.status === 'exists' || result?.status === 'already_downloading') {
+      downloadProgress.set(model.url, { progress: 100, status: 'completed' })
+    }
+    // For status "started", progress updates come via WebSocket
   } catch {
     downloadProgress.set(model.url, { progress: 0, status: 'error' })
   }
