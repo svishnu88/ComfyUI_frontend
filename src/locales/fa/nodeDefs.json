@@ -15251,6 +15251,41 @@
       }
     }
   },
+  "Tencent3DTextureEditNode": {
+    "description": "پس از وارد کردن مدل سه‌بعدی، بازطراحی بافت مدل سه‌بعدی انجام می‌شود.",
+    "display_name": "Hunyuan3D: ویرایش بافت سه‌بعدی",
+    "inputs": {
+      "control_after_generate": {
+        "name": "کنترل پس از تولید"
+      },
+      "model_3d": {
+        "name": "مدل_سه‌بعدی",
+        "tooltip": "مدل سه‌بعدی با فرمت FBX. مدل باید کمتر از ۱۰۰٬۰۰۰ وجه داشته باشد."
+      },
+      "prompt": {
+        "name": "پرامپت",
+        "tooltip": "توضیح ویرایش بافت. تا ۱۰۲۴ نویسه UTF-8 پشتیبانی می‌شود."
+      },
+      "seed": {
+        "name": "بذر",
+        "tooltip": "بذر تعیین می‌کند که node باید دوباره اجرا شود یا خیر؛ نتایج صرف‌نظر از بذر، غیرقطعی هستند."
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "GLB",
+        "tooltip": null
+      },
+      "1": {
+        "name": "OBJ",
+        "tooltip": null
+      },
+      "2": {
+        "name": "تصویر بافت",
+        "tooltip": null
+      }
+    }
+  },
   "TencentImageToModelNode": {
     "display_name": "Hunyuan3D: تبدیل تصویر(ها) به مدل (پیشرفته)",
     "inputs": {
@@ -15298,6 +15333,22 @@
       },
       "2": {
         "name": "OBJ",
+        "tooltip": null
+      },
+      "3": {
+        "name": "تصویر بافت",
+        "tooltip": null
+      },
+      "4": {
+        "name": "فلز اختیاری",
+        "tooltip": null
+      },
+      "5": {
+        "name": "نرمال اختیاری",
+        "tooltip": null
+      },
+      "6": {
+        "name": "زِبری اختیاری",
         "tooltip": null
       }
     }
@@ -15399,6 +15450,10 @@
       },
       "2": {
         "name": "OBJ",
+        "tooltip": null
+      },
+      "3": {
+        "name": "تصویر بافت",
         "tooltip": null
       }
     }

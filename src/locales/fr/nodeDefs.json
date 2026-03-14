@@ -15251,6 +15251,41 @@
       }
     }
   },
+  "Tencent3DTextureEditNode": {
+    "description": "Après avoir importé le modèle 3D, effectuez la retouche de la texture du modèle 3D.",
+    "display_name": "Hunyuan3D : Édition de texture 3D",
+    "inputs": {
+      "control_after_generate": {
+        "name": "contrôle après génération"
+      },
+      "model_3d": {
+        "name": "modèle_3d",
+        "tooltip": "Modèle 3D au format FBX. Le modèle doit comporter moins de 100 000 faces."
+      },
+      "prompt": {
+        "name": "invite",
+        "tooltip": "Décrit l’édition de la texture. Prend en charge jusqu’à 1024 caractères UTF-8."
+      },
+      "seed": {
+        "name": "graine",
+        "tooltip": "La graine contrôle si le nœud doit être relancé ; les résultats sont non déterministes quel que soit la graine."
+      }
+    },
+    "outputs": {
+      "0": {
+        "name": "GLB",
+        "tooltip": null
+      },
+      "1": {
+        "name": "OBJ",
+        "tooltip": null
+      },
+      "2": {
+        "name": "image_texture",
+        "tooltip": null
+      }
+    }
+  },
   "TencentImageToModelNode": {
     "display_name": "Hunyuan3D : Image(s) vers Modèle (Pro)",
     "inputs": {
@@ -15298,6 +15333,22 @@
       },
       "2": {
         "name": "OBJ",
+        "tooltip": null
+      },
+      "3": {
+        "name": "image_texture",
+        "tooltip": null
+      },
+      "4": {
+        "name": "optionnel_métallique",
+        "tooltip": null
+      },
+      "5": {
+        "name": "optionnel_normale",
+        "tooltip": null
+      },
+      "6": {
+        "name": "optionnel_rugosité",
         "tooltip": null
       }
     }
@@ -15399,6 +15450,10 @@
       },
       "2": {
         "name": "OBJ",
+        "tooltip": null
+      },
+      "3": {
+        "name": "image_texture",
         "tooltip": null
       }
     }
