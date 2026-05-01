@@ -1,6 +1,10 @@
 import { downloadUrlToHfRepoUrl, isCivitaiModelUrl } from '@/utils/formatUtil'
-import { isDesktop } from '@/platform/distribution/types'
+import { ServerFeatureFlag } from '@/composables/useFeatureFlags'
+import { isDesktop, isJarvis } from '@/platform/distribution/types'
 import { useElectronDownloadStore } from '@/stores/electronDownloadStore'
+import { api } from '@/scripts/api'
+import { useMissingModelStore } from '@/platform/missingModel/missingModelStore'
+import type { TaskId } from '@/platform/tasks/services/taskService'
 
 const ALLOWED_SOURCES = [
   'https://civitai.com/',
@@ -32,6 +36,16 @@ export interface ModelWithUrl {
   directory: string
 }
 
+interface ServerModelDownloadResponse {
+  task_id?: string | null
+  status?: 'created' | 'running' | 'completed' | 'failed' | 'started' | 'exists' | 'downloading'
+  filename?: string
+  bytes_total?: number
+  bytes_downloaded?: number
+  progress?: number
+  error?: string | null
+}
+
 /**
  * Converts a model download URL to a browsable page URL.
  * - HuggingFace: `/resolve/` → `/blob/` (file page with model info)
@@ -56,17 +70,103 @@ export function isModelDownloadable(model: ModelWithUrl): boolean {
   return true
 }
 
-export function downloadModel(
+async function downloadModelToServer(model: ModelWithUrl): Promise<void> {
+  const missingModelStore = useMissingModelStore()
+  const res = await api.fetchApi('/jarvis/models/download', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      url: model.url,
+      filename: model.name,
+      directory: model.directory
+    })
+  })
+
+  if (!res.ok) {
+    const errorText = await res.text().catch(() => '')
+    throw new Error(errorText || `Model download failed with ${res.status}`)
+  }
+
+  const result: ServerModelDownloadResponse | null = await res
+    .json()
+    .catch(() => null)
+  const status = typeof result?.status === 'string' ? result.status : 'started'
+  const taskId = result?.task_id
+
+  missingModelStore.setServerModelDownload(model.url, {
+    taskId: (taskId ?? `server-model-download:${model.url}`) as TaskId,
+    assetName: model.name,
+    bytesTotal: result?.bytes_total ?? 0,
+    bytesDownloaded: result?.bytes_downloaded ?? 0,
+    progress: result?.progress ?? (status === 'exists' ? 1 : 0),
+    status: status === 'exists' ? 'completed' : 'created',
+    lastUpdate: Date.now(),
+    error: result?.error ?? undefined
+  })
+
+  if (taskId) {
+    pollServerModelDownload(model, taskId)
+  }
+}
+
+function pollServerModelDownload(model: ModelWithUrl, taskId: string) {
+  const missingModelStore = useMissingModelStore()
+
+  const poll = async () => {
+    try {
+      const res = await api.fetchApi(`/jarvis/models/download/${taskId}`)
+      if (!res.ok) return
+
+      const data: ServerModelDownloadResponse = await res.json()
+      const status =
+        data.status === 'failed' || data.status === 'completed'
+          ? data.status
+          : data.status === 'running'
+            ? 'running'
+            : 'created'
+
+      missingModelStore.setServerModelDownload(model.url, {
+        taskId: taskId as TaskId,
+        assetName: data.filename ?? model.name,
+        bytesTotal: data.bytes_total ?? 0,
+        bytesDownloaded: data.bytes_downloaded ?? 0,
+        progress: data.progress ?? 0,
+        status,
+        lastUpdate: Date.now(),
+        error: data.error ?? undefined
+      })
+
+      if (status === 'completed' || status === 'failed') return
+      window.setTimeout(poll, 1000)
+    } catch {
+      window.setTimeout(poll, 2000)
+    }
+  }
+
+  window.setTimeout(poll, 500)
+}
+
+export async function downloadModel(
   model: ModelWithUrl,
   paths: Record<string, string[]>
-): void {
+): Promise<void> {
+  const canDownloadToJarvisServer =
+    isJarvis &&
+    api.getServerFeature(ServerFeatureFlag.JARVIS_MODEL_DOWNLOADS, false)
+
+  if (canDownloadToJarvisServer) {
+    await downloadModelToServer(model)
+    return
+  }
+
   if (!isDesktop) {
-    const link = document.createElement('a')
-    link.href = model.url
-    link.download = model.name
-    link.target = '_blank'
-    link.rel = 'noopener noreferrer'
-    link.click()
+    const anchor = document.createElement('a')
+    anchor.href = model.url
+    anchor.download = model.name
+    anchor.rel = 'noopener noreferrer'
+    document.body.appendChild(anchor)
+    anchor.click()
+    anchor.remove()
     return
   }
 

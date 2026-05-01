@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import {
+  downloadModel,
   fetchModelMetadata,
   isModelDownloadable,
   toBrowsableUrl
@@ -8,9 +9,31 @@ import {
 
 const fetchMock = vi.fn()
 vi.stubGlobal('fetch', fetchMock)
+const missingModelStoreMock = vi.hoisted(() => ({
+  setServerModelDownload: vi.fn()
+}))
 
-vi.mock('@/platform/distribution/types', () => ({ isDesktop: false }))
+vi.mock('@/platform/distribution/types', () => ({
+  isCloud: false,
+  isDesktop: false,
+  isJarvis: true,
+  isNightly: false
+}))
+vi.mock('@/composables/useFeatureFlags', () => ({
+  ServerFeatureFlag: {
+    JARVIS_MODEL_DOWNLOADS: 'jarvis_model_downloads'
+  }
+}))
 vi.mock('@/stores/electronDownloadStore', () => ({}))
+vi.mock('@/scripts/api', () => ({
+  api: {
+    fetchApi: vi.fn(),
+    getServerFeature: vi.fn()
+  }
+}))
+vi.mock('@/platform/missingModel/missingModelStore', () => ({
+  useMissingModelStore: () => missingModelStoreMock
+}))
 
 let testId = 0
 
@@ -211,5 +234,60 @@ describe('isModelDownloadable', () => {
         directory: 'checkpoints'
       })
     ).toBe(false)
+  })
+})
+
+describe('downloadModel', () => {
+  beforeEach(async () => {
+    const { api } = await import('@/scripts/api')
+    vi.mocked(api.fetchApi).mockReset()
+    vi.mocked(api.getServerFeature).mockReturnValue(true)
+  })
+
+  it('requests server-side model download in Jarvis deployments', async () => {
+    const { api } = await import('@/scripts/api')
+    vi.mocked(api.fetchApi).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ status: 'started' })
+    } as Response)
+
+    await downloadModel(
+      {
+        name: 'model.safetensors',
+        url: 'https://huggingface.co/org/model/resolve/main/model.safetensors',
+        directory: 'checkpoints'
+      },
+      {}
+    )
+
+    expect(api.fetchApi).toHaveBeenCalledWith('/jarvis/models/download', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        url: 'https://huggingface.co/org/model/resolve/main/model.safetensors',
+        filename: 'model.safetensors',
+        directory: 'checkpoints'
+      })
+    })
+  })
+
+  it('throws when the server-side download fails', async () => {
+    const { api } = await import('@/scripts/api')
+    vi.mocked(api.fetchApi).mockResolvedValueOnce({
+      ok: false,
+      status: 400,
+      text: async () => 'Unsupported model download URL.'
+    } as Response)
+
+    await expect(
+      downloadModel(
+        {
+          name: 'model.safetensors',
+          url: 'https://example.com/model.safetensors',
+          directory: 'checkpoints'
+        },
+        {}
+      )
+    ).rejects.toThrow('Unsupported model download URL.')
   })
 })

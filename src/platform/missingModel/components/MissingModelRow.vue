@@ -125,10 +125,10 @@
     <!-- Status card -->
     <TransitionCollapse>
       <MissingModelStatusCard
-        v-if="selectedLibraryModel[modelKey]"
-        :model-name="selectedLibraryModel[modelKey]"
-        :is-download-active="isDownloadActive"
-        :download-status="downloadStatus"
+        v-if="selectedLibraryModel[modelKey] || serverDownloadStatus"
+        :model-name="selectedLibraryModel[modelKey] || model.name"
+        :is-download-active="isDownloadActive || isServerDownloadActive"
+        :download-status="serverDownloadStatus ?? downloadStatus"
         :category-mismatch="importCategoryMismatch[modelKey]"
         @cancel="cancelLibrarySelect(modelKey)"
       />
@@ -148,7 +148,7 @@
           />
         </div>
         <div
-          v-else-if="!isCloud && downloadable"
+          v-else-if="canShowDownloadButton"
           class="flex w-full items-start py-1"
         >
           <Button
@@ -157,11 +157,17 @@
             size="md"
             class="flex w-full flex-1"
             :aria-label="`${t('g.download')} ${model.name}`"
+            :disabled="isServerDownloadActive"
             @click="handleDownload"
           >
             <i
               aria-hidden="true"
-              class="text-foreground mr-1 icon-[lucide--download] size-4 shrink-0"
+              class="text-foreground mr-1 size-4 shrink-0"
+              :class="
+                isServerDownloadActive
+                  ? 'icon-[lucide--loader-circle] animate-spin'
+                  : 'icon-[lucide--download]'
+              "
             />
             <span class="text-foreground min-w-0 truncate text-sm">
               {{ downloadLabel }}
@@ -174,7 +180,7 @@
             v-if="!urlInputs[modelKey]"
             :model-value="getComboValue(model.representative)"
             :options="comboOptions"
-            :show-divider="isAssetSupported || downloadable"
+            :show-divider="isAssetSupported || canShowDownloadButton"
             @select="handleComboSelect(modelKey, $event)"
           />
         </TransitionCollapse>
@@ -203,7 +209,8 @@ import {
 } from '@/platform/missingModel/composables/useMissingModelInteractions'
 import { useMissingModelStore } from '@/platform/missingModel/missingModelStore'
 import { useCopyToClipboard } from '@/composables/useCopyToClipboard'
-import { isCloud } from '@/platform/distribution/types'
+import { useFeatureFlags } from '@/composables/useFeatureFlags'
+import { isCloud, isJarvis } from '@/platform/distribution/types'
 import {
   downloadModel,
   fetchModelMetadata,
@@ -225,25 +232,40 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const { copyToClipboard } = useCopyToClipboard()
+const { flags } = useFeatureFlags()
 
 const modelKey = computed(() =>
   getModelStateKey(model.name, directory, isAssetSupported)
 )
 
-const downloadStatus = computed(() => getDownloadStatus(modelKey.value))
 const comboOptions = computed(() => getComboOptions(model.representative))
 const canConfirm = computed(() => isSelectionConfirmable(modelKey.value))
 const expanded = computed(() => isModelExpanded(modelKey.value))
 const typeMismatch = computed(() => getTypeMismatch(modelKey.value, directory))
+const downloadStatus = computed(() => getDownloadStatus(modelKey.value))
+const store = useMissingModelStore()
+const { selectedLibraryModel, importCategoryMismatch, urlInputs } =
+  storeToRefs(store)
 const isDownloadActive = computed(
   () =>
     downloadStatus.value?.status === 'running' ||
     downloadStatus.value?.status === 'created'
 )
-
-const store = useMissingModelStore()
-const { selectedLibraryModel, importCategoryMismatch, urlInputs } =
-  storeToRefs(store)
+const serverDownloadStatus = computed(() => {
+  const url = model.representative.url
+  return url ? store.serverModelDownloads[url] : null
+})
+const isServerDownloadActive = computed(
+  () =>
+    serverDownloadStatus.value?.status === 'running' ||
+    serverDownloadStatus.value?.status === 'created'
+)
+const isServerDownloadComplete = computed(
+  () => serverDownloadStatus.value?.status === 'completed'
+)
+const canUseJarvisModelDownloads = computed(
+  () => isJarvis && flags.jarvisModelDownloadsEnabled
+)
 
 onMounted(() => {
   const url = model.representative.url
@@ -276,10 +298,23 @@ const downloadable = computed(() => {
     })
   )
 })
+const canShowDownloadButton = computed(
+  () =>
+    !isCloud &&
+    downloadable.value &&
+    !isServerDownloadComplete.value &&
+    (!isJarvis || canUseJarvisModelDownloads.value)
+)
 
 const downloadLabel = computed(() => {
   const base = t('g.download')
   const url = model.representative.url
+  if (isServerDownloadActive.value) {
+    const progress = Math.round(
+      (serverDownloadStatus.value?.progress ?? 0) * 100
+    )
+    return `${t('rightSidePanel.missingModels.importing')} ${progress}%`
+  }
   const size = url ? store.fileSizes[url] : undefined
   return size ? `${base} (${formatSize(size)})` : base
 })
@@ -287,10 +322,12 @@ const downloadLabel = computed(() => {
 function handleDownload() {
   const rep = model.representative
   if (rep.url && rep.directory) {
-    downloadModel(
+    void downloadModel(
       { name: rep.name, url: rep.url, directory: rep.directory },
       store.folderPaths
-    )
+    ).catch((error: unknown) => {
+      console.error('[MissingModelRow] Model download failed:', error)
+    })
   } else {
     console.warn('[MissingModelRow] Cannot download: missing url or directory')
   }

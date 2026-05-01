@@ -43,10 +43,11 @@ const VITE_OG_KEYWORDS = 'ComfyUI, Comfy Cloud, ComfyUI online'
 const DEV_SERVER_COMFYUI_ENV_URL = process.env.DEV_SERVER_COMFYUI_URL
 const IS_CLOUD_URL = DEV_SERVER_COMFYUI_ENV_URL?.includes('.comfy.org')
 
-const DISTRIBUTION: 'desktop' | 'localhost' | 'cloud' =
+const DISTRIBUTION: 'desktop' | 'localhost' | 'cloud' | 'jarvis' =
   process.env.DISTRIBUTION === 'desktop' ||
   process.env.DISTRIBUTION === 'localhost' ||
-  process.env.DISTRIBUTION === 'cloud'
+  process.env.DISTRIBUTION === 'cloud' ||
+  process.env.DISTRIBUTION === 'jarvis'
     ? process.env.DISTRIBUTION
     : IS_CLOUD_URL
       ? 'cloud'

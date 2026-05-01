@@ -117,7 +117,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MissingModelGroup } from '@/platform/missingModel/types'
-import { isCloud } from '@/platform/distribution/types'
+import { useFeatureFlags } from '@/composables/useFeatureFlags'
+import { isCloud, isJarvis } from '@/platform/distribution/types'
 import MissingModelRow from '@/platform/missingModel/components/MissingModelRow.vue'
 import Button from '@/components/ui/button/Button.vue'
 import DotSpinner from '@/components/common/DotSpinner.vue'
@@ -137,9 +138,11 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const missingModelStore = useMissingModelStore()
+const { flags } = useFeatureFlags()
 
 const downloadableModels = computed(() => {
   if (isCloud) return []
+  if (isJarvis && !flags.jarvisModelDownloadsEnabled) return []
 
   return getDownloadableModels(missingModelGroups)
 })
@@ -155,7 +158,11 @@ const downloadAllLabel = computed(() => {
 
 function downloadAllModels() {
   for (const model of downloadableModels.value) {
-    downloadModel(model, missingModelStore.folderPaths)
+    void downloadModel(model, missingModelStore.folderPaths).catch(
+      (error: unknown) => {
+        console.error('[MissingModelCard] Model download failed:', error)
+      }
+    )
   }
 }
 

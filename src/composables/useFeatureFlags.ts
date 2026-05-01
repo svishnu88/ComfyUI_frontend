@@ -27,7 +27,8 @@ export enum ServerFeatureFlag {
   WORKFLOW_SHARING_ENABLED = 'workflow_sharing_enabled',
   COMFYHUB_UPLOAD_ENABLED = 'comfyhub_upload_enabled',
   COMFYHUB_PROFILE_GATE_ENABLED = 'comfyhub_profile_gate_enabled',
-  SHOW_SIGNIN_BUTTON = 'show_signin_button'
+  SHOW_SIGNIN_BUTTON = 'show_signin_button',
+  JARVIS_MODEL_DOWNLOADS = 'jarvis_model_downloads'
 }
 
 /**
@@ -162,6 +163,12 @@ export function useFeatureFlags() {
       return api.getServerFeature<boolean | undefined>(
         ServerFeatureFlag.SHOW_SIGNIN_BUTTON,
         undefined
+      )
+    },
+    get jarvisModelDownloadsEnabled() {
+      return api.getServerFeature(
+        ServerFeatureFlag.JARVIS_MODEL_DOWNLOADS,
+        false
       )
     }
   })

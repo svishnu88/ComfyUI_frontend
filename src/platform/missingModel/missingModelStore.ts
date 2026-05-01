@@ -9,9 +9,21 @@ import { useToastStore } from '@/platform/updates/common/toastStore'
 import type { MissingModelCandidate } from '@/platform/missingModel/types'
 import type { AssetMetadata } from '@/platform/assets/schemas/assetSchema'
 import type { LGraphNode } from '@/lib/litegraph/src/litegraph'
+import type { TaskId } from '@/platform/tasks/services/taskService'
 import { getAncestorExecutionIds } from '@/types/nodeIdentification'
 import type { NodeExecutionId } from '@/types/nodeIdentification'
 import { getActiveGraphNodeIds } from '@/utils/graphTraversalUtil'
+
+export interface ServerModelDownload {
+  taskId: TaskId
+  assetName: string
+  bytesTotal: number
+  bytesDownloaded: number
+  progress: number
+  status: 'created' | 'running' | 'completed' | 'failed'
+  lastUpdate: number
+  error?: string
+}
 
 /**
  * Missing model error state and interaction state.
@@ -90,6 +102,7 @@ export const useMissingModelStore = defineStore('missingModel', () => {
   const urlImporting = ref<Record<string, boolean>>({})
   const folderPaths = ref<Record<string, string[]>>({})
   const fileSizes = ref<Record<string, number>>({})
+  const serverModelDownloads = ref<Record<string, ServerModelDownload>>({})
 
   const _urlDebounceTimers: Record<string, ReturnType<typeof setTimeout>> = {}
 
@@ -255,6 +268,10 @@ export const useMissingModelStore = defineStore('missingModel', () => {
     fileSizes.value[url] = size
   }
 
+  function setServerModelDownload(url: string, download: ServerModelDownload) {
+    serverModelDownloads.value[url] = download
+  }
+
   function clearMissingModels() {
     _verificationAbortController?.abort()
     _verificationAbortController = null
@@ -271,6 +288,7 @@ export const useMissingModelStore = defineStore('missingModel', () => {
     urlImporting.value = {}
     folderPaths.value = {}
     fileSizes.value = {}
+    serverModelDownloads.value = {}
   }
 
   function isAbortError(error: unknown) {
@@ -331,9 +349,11 @@ export const useMissingModelStore = defineStore('missingModel', () => {
     urlImporting,
     folderPaths,
     fileSizes,
+    serverModelDownloads,
 
     setFolderPaths,
     setFileSize,
+    setServerModelDownload,
 
     setDebounceTimer,
     clearDebounceTimer
