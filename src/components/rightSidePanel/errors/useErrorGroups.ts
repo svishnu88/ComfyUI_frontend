@@ -247,6 +247,15 @@ export function useErrorGroups(
   const { inferPackFromNodeName } = useComfyRegistryStore()
   const collapseState = reactive<Record<string, boolean>>({})
 
+  const pendingMissingModelCandidates = computed(() =>
+    (missingModelStore.missingModelCandidates ?? []).filter(
+      (candidate) =>
+        !candidate.url ||
+        missingModelStore.serverModelDownloads?.[candidate.url]?.status !==
+          'completed'
+    )
+  )
+
   const selectedNodeInfo = computed(() => {
     const items = canvasStore.selectedItems
     const nodeIds = new Set<string>()
@@ -587,7 +596,7 @@ export function useErrorGroups(
   /** Groups missing models. Asset-supported models group by directory; others go into a separate group.
    *  Within each group, candidates with the same model name are merged into a single view model. */
   const missingModelGroups = computed<MissingModelGroup[]>(() => {
-    const candidates = missingModelStore.missingModelCandidates
+    const candidates = pendingMissingModelCandidates.value
     if (!candidates?.length) return []
 
     type GroupKey = string | null | typeof UNSUPPORTED
@@ -684,7 +693,7 @@ export function useErrorGroups(
 
   const filteredMissingModelGroups = computed(() => {
     if (!selectedNodeInfo.value.nodeIds) return missingModelGroups.value
-    const candidates = missingModelStore.missingModelCandidates
+    const candidates = pendingMissingModelCandidates.value
     if (!candidates?.length) return []
     const filtered = candidates.filter(
       (c) => c.nodeId != null && isAssetErrorInSelection(String(c.nodeId))
